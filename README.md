@@ -29,6 +29,8 @@ Supported config keys:
 - `api_token`
 - `jira_cache_root`
 
+`base_url` is required. There is no built-in default Jira site.
+
 Repo `.env` variable names:
 
 - `ATLASSIAN_BASE_URL`

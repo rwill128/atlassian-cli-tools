@@ -5,7 +5,6 @@ from pathlib import Path
 from typing import Optional
 
 
-DEFAULT_BASE_URL = "https://tillster.atlassian.net"
 DEFAULT_CONFIG_PATH = Path.home() / ".config" / "atlassian-cli" / "config.json"
 LEGACY_CONFIG_PATH = Path.home() / ".config" / "tillster-atlassian" / "config.json"
 DEFAULT_JIRA_CACHE_ROOT = Path.home() / ".local" / "share" / "atlassian-cli" / "jira"
@@ -83,7 +82,6 @@ def load_config() -> AtlassianConfig:
         dotenv_cfg.get("ATLASSIAN_BASE_URL"),
         dotenv_cfg.get("TILLSTER_ATLASSIAN_BASE_URL"),
         file_cfg.get("base_url"),
-        DEFAULT_BASE_URL,
     )
     email = _first_value(
         os.environ.get("ATLASSIAN_EMAIL"),
@@ -100,11 +98,12 @@ def load_config() -> AtlassianConfig:
         file_cfg.get("api_token"),
     )
 
-    if not email or not api_token:
+    if not base_url or not email or not api_token:
         raise SystemExit(
-            "Missing Atlassian credentials. Set ATLASSIAN_EMAIL and ATLASSIAN_API_TOKEN, "
-            "or populate ~/.config/atlassian-cli/config.json. Legacy TILLSTER_ATLASSIAN_* "
-            "variables and ~/.config/tillster-atlassian/config.json are also supported."
+            "Missing Atlassian config. Set ATLASSIAN_BASE_URL, ATLASSIAN_EMAIL, and "
+            "ATLASSIAN_API_TOKEN, or populate ~/.config/atlassian-cli/config.json. "
+            "Legacy TILLSTER_ATLASSIAN_* variables and ~/.config/tillster-atlassian/config.json "
+            "are also supported."
         )
 
     return AtlassianConfig(
