@@ -95,6 +95,43 @@ def create_issue(fields: Dict[str, Any]) -> dict:
     )
 
 
+def add_issue_comment(issue_key: str, body: Dict[str, Any]) -> dict:
+    return request_json(
+        f"/rest/api/3/issue/{issue_key}/comment",
+        method="POST",
+        body={"body": body},
+    )
+
+
+def update_issue_comment(issue_key: str, comment_id: str, body: Dict[str, Any]) -> dict:
+    return request_json(
+        f"/rest/api/3/issue/{issue_key}/comment/{comment_id}",
+        method="PUT",
+        body={"body": body},
+    )
+
+
+def update_issue(issue_key: str, fields: Dict[str, Any]) -> dict:
+    return request_json(
+        f"/rest/api/3/issue/{issue_key}",
+        method="PUT",
+        body={"fields": fields},
+    )
+
+
+def get_issue_transitions(issue_key: str) -> List[dict]:
+    data = request_json(f"/rest/api/3/issue/{issue_key}/transitions")
+    return data.get("transitions", [])
+
+
+def transition_issue(issue_key: str, transition_id: str) -> dict:
+    return request_json(
+        f"/rest/api/3/issue/{issue_key}/transitions",
+        method="POST",
+        body={"transition": {"id": transition_id}},
+    )
+
+
 def search_users(query: str, max_results: int = 20) -> List[dict]:
     data = request_json(
         "/rest/api/3/user/search",

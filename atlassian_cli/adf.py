@@ -1,5 +1,5 @@
 import re
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 
 def adf_to_text(node: Any) -> str:
@@ -103,6 +103,19 @@ def text_to_adf(text: str) -> Dict[str, Any]:
             index += 1
             continue
 
+        fence_match = re.match(r"^```(.*)$", stripped)
+        if fence_match:
+            language = fence_match.group(1).strip() or None
+            index += 1
+            code_lines: List[str] = []
+            while index < len(lines) and not lines[index].strip().startswith("```"):
+                code_lines.append(lines[index])
+                index += 1
+            if index < len(lines):
+                index += 1
+            content.append(_code_block_node("\n".join(code_lines), language=language))
+            continue
+
         heading_match = re.match(r"^(#{1,6})\s+(.*)$", stripped)
         if heading_match:
             content.append(
@@ -139,17 +152,29 @@ def text_to_adf(text: str) -> Dict[str, Any]:
             content.append(_list_node(items, ordered=True))
             continue
 
+        if stripped.startswith("|"):
+            table_lines: List[str] = []
+            while index < len(lines) and lines[index].strip().startswith("|"):
+                table_lines.append(lines[index].rstrip())
+                index += 1
+            content.append(_table_node(table_lines))
+            continue
+
         paragraph_lines = [stripped]
         index += 1
         while index < len(lines):
             next_line = lines[index].strip()
             if not next_line:
                 break
+            if re.match(r"^```", next_line):
+                break
             if re.match(r"^(#{1,6})\s+", next_line):
                 break
             if re.match(r"^[-*]\s+", next_line):
                 break
             if re.match(r"^\d+\.\s+", next_line):
+                break
+            if next_line.startswith("|"):
                 break
             paragraph_lines.append(next_line)
             index += 1
@@ -161,6 +186,67 @@ def text_to_adf(text: str) -> Dict[str, Any]:
 
 def _paragraph_node(text: str) -> Dict[str, Any]:
     return {"type": "paragraph", "content": [{"type": "text", "text": text}]}
+
+
+def _code_block_node(text: str, *, language: Optional[str] = None) -> Dict[str, Any]:
+    node: Dict[str, Any] = {"type": "codeBlock", "content": [{"type": "text", "text": text}]}
+    if language:
+        node["attrs"] = {"language": language}
+    return node
+
+
+def _table_node(lines: List[str]) -> Dict[str, Any]:
+    rows = [_split_table_row(line) for line in lines]
+    rows = [row for row in rows if row]
+    if not rows:
+        return _code_block_node("\n".join(lines), language="text")
+
+    header = rows[0]
+    data_rows = rows[1:]
+    if data_rows and _is_table_separator(data_rows[0]):
+        data_rows = data_rows[1:]
+
+    width = max(len(header), *(len(row) for row in data_rows)) if data_rows else len(header)
+    normalized_rows = [_pad_row(header, width), *[_pad_row(row, width) for row in data_rows]]
+
+    return {
+        "type": "table",
+        "attrs": {"isNumberColumnEnabled": False, "layout": "default"},
+        "content": [
+            {
+                "type": "tableRow",
+                "content": [
+                    _table_cell_node(cell, header=row_index == 0)
+                    for cell in row
+                ],
+            }
+            for row_index, row in enumerate(normalized_rows)
+        ],
+    }
+
+
+def _split_table_row(line: str) -> List[str]:
+    stripped = line.strip()
+    if stripped.startswith("|"):
+        stripped = stripped[1:]
+    if stripped.endswith("|"):
+        stripped = stripped[:-1]
+    return [cell.strip() for cell in stripped.split("|")]
+
+
+def _is_table_separator(row: List[str]) -> bool:
+    return all(re.fullmatch(r":?-{3,}:?", cell.strip()) for cell in row)
+
+
+def _pad_row(row: List[str], width: int) -> List[str]:
+    return [*row, *([""] * (width - len(row)))]
+
+
+def _table_cell_node(text: str, *, header: bool) -> Dict[str, Any]:
+    return {
+        "type": "tableHeader" if header else "tableCell",
+        "content": [_paragraph_node(text)],
+    }
 
 
 def _list_node(items: List[str], *, ordered: bool) -> Dict[str, Any]:
